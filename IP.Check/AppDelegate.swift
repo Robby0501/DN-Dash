@@ -134,7 +134,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             print("Setting title to: \(title)")
             statusItem?.button?.title = title
         } else if let publicCountry = customView.currentCountry,
-                  let homeCountry = UserDefaults.standard.string(forKey: "homeCountry") {
+                  let homeCountry = UserDefaults.standard.string(forKey: "homeCountry"),
+                  homeCountry != "Not set" {
             let newTitle = publicCountry == homeCountry ? ":)" : ":("
             print("Setting title to: \(newTitle)")
             statusItem?.button?.title = newTitle

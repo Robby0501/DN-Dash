@@ -173,7 +173,8 @@ class CustomView: NSView {
 
     func compareCountries() {
         if let currentCountry = self.currentCountry,
-           let homeCountry = UserDefaults.standard.string(forKey: "homeCountry") {
+           let homeCountry = UserDefaults.standard.string(forKey: "homeCountry"),
+           homeCountry != "Not set" {
             let title = currentCountry == homeCountry ? ":)" : ":("
             updateStatusItemTitle(title: title)
         } else {
