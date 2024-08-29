@@ -88,8 +88,10 @@ class CustomView: NSView {
         ])
 
         // Display the public IP address and home country
-        fetchPublicIP()
-        loadHomeCountry()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.fetchPublicIP()
+            self?.loadHomeCountry()
+        }
     }
     
     required init?(coder: NSCoder) {
@@ -143,16 +145,11 @@ class CustomView: NSView {
 
         let task = URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
             DispatchQueue.main.async {
-                if let error = error {
-                    self?.resultLabel.stringValue = ip
-                    self?.flagLabel.stringValue = ""
-                    print("Error fetching country info: \(error.localizedDescription)")
-                    return
-                }
+                self?.resultLabel.stringValue = ip
+                self?.flagLabel.stringValue = ""
 
-                guard let data = data else {
-                    self?.resultLabel.stringValue = ip
-                    self?.flagLabel.stringValue = ""
+                guard let data = data, error == nil else {
+                    print("Error fetching country info: \(error?.localizedDescription ?? "Unknown error")")
                     return
                 }
 
@@ -160,24 +157,37 @@ class CustomView: NSView {
                     if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
                        let countryCode = json["country_code"] as? String,
                        let country = json["country_name"] as? String {
-                        self?.resultLabel.stringValue = ip
                         self?.flagLabel.stringValue = self?.countryFlag(from: countryCode) ?? ""
                         self?.currentCountry = country
-                        print("Current country set to: \(country)") // Add this line for debugging
-                        self?.updateStatusItemTitle()
-                    } else {
-                        self?.resultLabel.stringValue = ip
-                        self?.flagLabel.stringValue = ""
+                        print("Current country set to: \(country)")
+                        self?.compareCountries()
                     }
                 } catch {
-                    self?.resultLabel.stringValue = ip
-                    self?.flagLabel.stringValue = ""
                     print("Error parsing country info: \(error.localizedDescription)")
                 }
             }
         }
 
         task.resume()
+    }
+
+    func compareCountries() {
+        if let currentCountry = self.currentCountry,
+           let homeCountry = UserDefaults.standard.string(forKey: "homeCountry") {
+            let title = currentCountry == homeCountry ? ":)" : ":("
+            updateStatusItemTitle(title: title)
+        } else {
+            updateStatusItemTitle(title: "DN Dash")
+        }
+    }
+
+    func updateStatusItemTitle(title: String) {
+        print("CustomView: Updating status item title to \(title)")
+        if let appDelegate = AppDelegate.shared {
+            appDelegate.updateStatusItemTitle(title: title)
+        } else {
+            print("CustomView: Failed to get AppDelegate")
+        }
     }
 
     func countryFlag(from countryCode: String) -> String {
@@ -192,21 +202,11 @@ class CustomView: NSView {
     func updateHomeCountry(_ country: String) {
         homeCountryResultLabel.stringValue = country
         UserDefaults.standard.set(country, forKey: "homeCountry")
-        updateStatusItemTitle()
-    }
-
-    func updateStatusItemTitle() {
-        print("CustomView: Updating status item title")
-        if let appDelegate = NSApplication.shared.delegate as? AppDelegate {
-            appDelegate.updateStatusItemTitle()
-        } else {
-            print("CustomView: Failed to get AppDelegate")
-        }
+        compareCountries()  // This will call updateStatusItemTitle with the correct title
     }
 
     func loadHomeCountry() {
-        let homeCountry = UserDefaults.standard.string(forKey: "homeCountry") ?? "Not set"
-        updateHomeCountry(homeCountry)
+        updateHomeCountry(UserDefaults.standard.string(forKey: "homeCountry") ?? "Not set")
     }
 }
 

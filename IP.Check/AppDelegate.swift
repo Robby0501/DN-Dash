@@ -8,18 +8,15 @@
 import Cocoa
 
 class AppDelegate: NSObject, NSApplicationDelegate {
+    static var shared: AppDelegate?
     var statusItem: NSStatusItem?
     var customView: NSView?  // Change this back to NSView
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        AppDelegate.shared = self
         // Create a status item in the menu bar with a variable length
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
-        // Set the title of the status item (the text displayed in the menu bar)
-        if let button = statusItem?.button {
-            button.title = "DN Dash"
-        }
-
         // Create a new NSMenu instance to be displayed when the status item is clicked
         let menu = NSMenu()
 
@@ -48,7 +45,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         (customView as? CustomView)?.loadHomeCountry()
 
         // Update status item title
-        updateStatusItemTitle()
+        updateStatusItemTitle(title: nil)
     }
 
     @objc func quitApplication() {
@@ -56,7 +53,29 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @objc func openCountrySelector() {
-        let countries = ["United States", "China", "India", "Russia", "Brazil", "Japan", "Germany", "United Kingdom", "France", "Italy"]
+        let countries = [
+            "Afghanistan", "Algeria", "Angola", "Argentina", "Australia", "Austria", "Azerbaijan",
+            "Bangladesh", "Belarus", "Belgium", "Benin", "Bolivia", "Brazil", "Burkina Faso", "Burundi",
+            "Cambodia", "Cameroon", "Canada", "Chad", "Chile", "China", "Colombia", "Côte d'Ivoire", "Cuba", "Czech Republic (Czechia)",
+            "DR Congo", "Dominican Republic",
+            "Ecuador", "Egypt", "Ethiopia",
+            "France",
+            "Germany", "Ghana", "Greece", "Guatemala", "Guinea",
+            "Haiti", "Honduras", "Hungary",
+            "India", "Indonesia", "Iran", "Iraq", "Israel", "Italy",
+            "Japan", "Jordan",
+            "Kazakhstan", "Kenya",
+            "Madagascar", "Malawi", "Malaysia", "Mali", "Mexico", "Morocco", "Mozambique", "Myanmar",
+            "Nepal", "Netherlands", "Niger", "Nigeria", "North Korea",
+            "Pakistan", "Papua New Guinea", "Peru", "Philippines", "Poland", "Portugal",
+            "Romania", "Russia", "Rwanda",
+            "Saudi Arabia", "Senegal", "Serbia", "Sierra Leone", "Somalia", "South Africa", "South Korea", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Sweden", "Switzerland", "Syria",
+            "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Togo", "Tunisia", "Turkey",
+            "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States", "Uzbekistan",
+            "Venezuela", "Vietnam",
+            "Yemen",
+            "Zambia", "Zimbabwe"
+        ].sorted()  // This sorts the array alphabetically
         
         let alert = NSAlert()
         alert.messageText = "Select Home Country"
@@ -95,28 +114,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if let selectedCountry = popUpButton.selectedItem?.title {
                 print("Selected country: \(selectedCountry)")
                 (self.customView as? CustomView)?.updateHomeCountry(selectedCountry)
-                updateStatusItemTitle()
+                (self.customView as? CustomView)?.compareCountries()
             }
         }
     }
 
-    func updateStatusItemTitle() {
+    func updateStatusItemTitle(title: String? = nil) {
         print("Updating status item title")
-        if let customView = customView as? CustomView {
-            print("Current country: \(customView.currentCountry ?? "nil")")
-            print("Home country: \(UserDefaults.standard.string(forKey: "homeCountry") ?? "nil")")
-            
-            if let publicCountry = customView.currentCountry,
-               let homeCountry = UserDefaults.standard.string(forKey: "homeCountry") {
-                let title = publicCountry == homeCountry ? ":)" : ":("
-                print("Setting title to: \(title)")
-                statusItem?.button?.title = title
-            } else {
-                print("Setting title to: DN Dash")
-                statusItem?.button?.title = "DN Dash"
-            }
-        } else {
+        guard let customView = customView as? CustomView else {
             print("CustomView is nil or not of type CustomView")
+            statusItem?.button?.title = "DN Dash"
+            return
+        }
+
+        print("Current country: \(customView.currentCountry ?? "nil")")
+        print("Home country: \(UserDefaults.standard.string(forKey: "homeCountry") ?? "nil")")
+        
+        if let title = title {
+            print("Setting title to: \(title)")
+            statusItem?.button?.title = title
+        } else if let publicCountry = customView.currentCountry,
+                  let homeCountry = UserDefaults.standard.string(forKey: "homeCountry") {
+            let newTitle = publicCountry == homeCountry ? ":)" : ":("
+            print("Setting title to: \(newTitle)")
+            statusItem?.button?.title = newTitle
+        } else {
+            print("Setting title to: DN Dash")
             statusItem?.button?.title = "DN Dash"
         }
     }
