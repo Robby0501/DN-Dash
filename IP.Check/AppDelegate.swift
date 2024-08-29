@@ -9,6 +9,7 @@ import Cocoa
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
+    var customView: NSView?  // Change this back to NSView
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Create a status item in the menu bar with a variable length
@@ -24,7 +25,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Create a custom menu item that contains the CustomView for public IP
         let customViewItem = NSMenuItem()
-        customViewItem.view = CustomView(frame: NSRect(x: 0, y: 0, width: 380, height: 20))
+        customView = CustomView(frame: NSRect(x: 0, y: 0, width: 380, height: 60)) // Increase height to 60
+        customViewItem.view = customView
         menu.addItem(customViewItem)
 
         // Add a separator item
@@ -41,6 +43,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Assign the menu to the status item
         statusItem?.menu = menu
+
+        // Add this line to load the home country when the app starts
+        (customView as? CustomView)?.loadHomeCountry()
+
+        // Update status item title
+        updateStatusItemTitle()
     }
 
     @objc func quitApplication() {
@@ -68,6 +76,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Create the popup button
         let popUpButton = NSPopUpButton(frame: NSRect(x: 30, y: 0, width: 200, height: 25))
         popUpButton.addItems(withTitles: countries)
+        
+        // Set the default selected option to the current home country
+        if let currentHomeCountry = UserDefaults.standard.string(forKey: "homeCountry"),
+           let index = countries.firstIndex(of: currentHomeCountry) {
+            popUpButton.selectItem(at: index)
+        }
+        
         customView.addSubview(popUpButton)
         
         alert.accessoryView = customView
@@ -79,8 +94,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if response == .alertFirstButtonReturn {
             if let selectedCountry = popUpButton.selectedItem?.title {
                 print("Selected country: \(selectedCountry)")
-                // Here you can add logic to save the selected country or perform any other actions
+                (self.customView as? CustomView)?.updateHomeCountry(selectedCountry)
+                updateStatusItemTitle()
             }
+        }
+    }
+
+    func updateStatusItemTitle() {
+        print("Updating status item title")
+        if let customView = customView as? CustomView {
+            print("Current country: \(customView.currentCountry ?? "nil")")
+            print("Home country: \(UserDefaults.standard.string(forKey: "homeCountry") ?? "nil")")
+            
+            if let publicCountry = customView.currentCountry,
+               let homeCountry = UserDefaults.standard.string(forKey: "homeCountry") {
+                let title = publicCountry == homeCountry ? ":)" : ":("
+                print("Setting title to: \(title)")
+                statusItem?.button?.title = title
+            } else {
+                print("Setting title to: DN Dash")
+                statusItem?.button?.title = "DN Dash"
+            }
+        } else {
+            print("CustomView is nil or not of type CustomView")
+            statusItem?.button?.title = "DN Dash"
         }
     }
 }

@@ -12,6 +12,9 @@ class CustomView: NSView {
     private let label: NSTextField
     private let flagLabel: NSTextField
     private let resultLabel: NSTextField
+    private let homeCountryLabel: NSTextField
+    private let homeCountryResultLabel: NSTextField
+    var currentCountry: String?
 
     override init(frame frameRect: NSRect) {
         // Initialize the UI components
@@ -19,6 +22,8 @@ class CustomView: NSView {
         label = NSTextField(labelWithString: "Public IP:")
         flagLabel = NSTextField(labelWithString: "")
         resultLabel = NSTextField(labelWithString: "Loading...")
+        homeCountryLabel = NSTextField(labelWithString: "Home Country:")
+        homeCountryResultLabel = NSTextField(labelWithString: "Not set")
 
         super.init(frame: frameRect)
         
@@ -27,6 +32,8 @@ class CustomView: NSView {
         label.translatesAutoresizingMaskIntoConstraints = false
         flagLabel.translatesAutoresizingMaskIntoConstraints = false
         resultLabel.translatesAutoresizingMaskIntoConstraints = false
+        homeCountryLabel.translatesAutoresizingMaskIntoConstraints = false
+        homeCountryResultLabel.translatesAutoresizingMaskIntoConstraints = false
 
         // Configure labels
         label.isEditable = false
@@ -39,11 +46,20 @@ class CustomView: NSView {
         resultLabel.isBordered = false
         resultLabel.drawsBackground = false
         resultLabel.alignment = .left
+        homeCountryLabel.isEditable = false
+        homeCountryLabel.isBordered = false
+        homeCountryLabel.drawsBackground = false
+        homeCountryResultLabel.isEditable = false
+        homeCountryResultLabel.isBordered = false
+        homeCountryResultLabel.drawsBackground = false
+        homeCountryResultLabel.alignment = .left
 
         // Add the components to the view
         containerView.addSubview(label)
         containerView.addSubview(flagLabel)
         containerView.addSubview(resultLabel)
+        containerView.addSubview(homeCountryLabel)
+        containerView.addSubview(homeCountryResultLabel)
         self.addSubview(containerView)
 
         // Set up Auto Layout constraints
@@ -52,21 +68,28 @@ class CustomView: NSView {
             containerView.leadingAnchor.constraint(equalTo: self.leadingAnchor),
             containerView.trailingAnchor.constraint(equalTo: self.trailingAnchor),
             containerView.bottomAnchor.constraint(equalTo: self.bottomAnchor),
-            containerView.heightAnchor.constraint(equalToConstant: 20),
 
             label.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 5),
-            label.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
+            label.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 10),
 
             flagLabel.leadingAnchor.constraint(equalTo: label.trailingAnchor, constant: 5),
-            flagLabel.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
+            flagLabel.centerYAnchor.constraint(equalTo: label.centerYAnchor),
 
             resultLabel.leadingAnchor.constraint(equalTo: flagLabel.trailingAnchor, constant: 2),
             resultLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -5),
-            resultLabel.centerYAnchor.constraint(equalTo: containerView.centerYAnchor)
+            resultLabel.centerYAnchor.constraint(equalTo: label.centerYAnchor),
+
+            homeCountryLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 5),
+            homeCountryLabel.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 10),
+
+            homeCountryResultLabel.leadingAnchor.constraint(equalTo: homeCountryLabel.trailingAnchor, constant: 5),
+            homeCountryResultLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -5),
+            homeCountryResultLabel.centerYAnchor.constraint(equalTo: homeCountryLabel.centerYAnchor)
         ])
 
-        // Display the public IP address
+        // Display the public IP address and home country
         fetchPublicIP()
+        loadHomeCountry()
     }
     
     required init?(coder: NSCoder) {
@@ -135,9 +158,13 @@ class CustomView: NSView {
 
                 do {
                     if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
-                       let countryCode = json["country_code"] as? String {
+                       let countryCode = json["country_code"] as? String,
+                       let country = json["country_name"] as? String {
                         self?.resultLabel.stringValue = ip
                         self?.flagLabel.stringValue = self?.countryFlag(from: countryCode) ?? ""
+                        self?.currentCountry = country
+                        print("Current country set to: \(country)") // Add this line for debugging
+                        self?.updateStatusItemTitle()
                     } else {
                         self?.resultLabel.stringValue = ip
                         self?.flagLabel.stringValue = ""
@@ -160,6 +187,26 @@ class CustomView: NSView {
             s.unicodeScalars.append(UnicodeScalar(base + v.value)!)
         }
         return String(s)
+    }
+
+    func updateHomeCountry(_ country: String) {
+        homeCountryResultLabel.stringValue = country
+        UserDefaults.standard.set(country, forKey: "homeCountry")
+        updateStatusItemTitle()
+    }
+
+    func updateStatusItemTitle() {
+        print("CustomView: Updating status item title")
+        if let appDelegate = NSApplication.shared.delegate as? AppDelegate {
+            appDelegate.updateStatusItemTitle()
+        } else {
+            print("CustomView: Failed to get AppDelegate")
+        }
+    }
+
+    func loadHomeCountry() {
+        let homeCountry = UserDefaults.standard.string(forKey: "homeCountry") ?? "Not set"
+        updateHomeCountry(homeCountry)
     }
 }
 
