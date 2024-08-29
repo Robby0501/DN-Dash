@@ -5,101 +5,163 @@
 //  Created by Robby Ulrich on 8/29/24.
 //
 import Cocoa
+import Foundation
 
 class CustomView: NSView {
+    private let containerView: NSView
     private let label: NSTextField
-    private let ipTextField: NSTextField
-    private let checkButton: NSButton
+    private let flagLabel: NSTextField
     private let resultLabel: NSTextField
 
     override init(frame frameRect: NSRect) {
         // Initialize the UI components
-        label = NSTextField(labelWithString: "Enter your IP:")
-        ipTextField = NSTextField(string: "")
-        checkButton = NSButton(title: "Check IP", target: nil, action: #selector(checkIP))
-        resultLabel = NSTextField(labelWithString: "")
+        containerView = NSView()
+        label = NSTextField(labelWithString: "Public IP:")
+        flagLabel = NSTextField(labelWithString: "")
+        resultLabel = NSTextField(labelWithString: "Loading...")
 
         super.init(frame: frameRect)
         
         // Disable autoresizing mask translation to use Auto Layout
+        containerView.translatesAutoresizingMaskIntoConstraints = false
         label.translatesAutoresizingMaskIntoConstraints = false
-        ipTextField.translatesAutoresizingMaskIntoConstraints = false
-        checkButton.translatesAutoresizingMaskIntoConstraints = false
+        flagLabel.translatesAutoresizingMaskIntoConstraints = false
         resultLabel.translatesAutoresizingMaskIntoConstraints = false
 
+        // Configure labels
+        label.isEditable = false
+        label.isBordered = false
+        label.drawsBackground = false
+        flagLabel.isEditable = false
+        flagLabel.isBordered = false
+        flagLabel.drawsBackground = false
+        resultLabel.isEditable = false
+        resultLabel.isBordered = false
+        resultLabel.drawsBackground = false
+        resultLabel.alignment = .left
+
         // Add the components to the view
-        self.addSubview(label)
-        self.addSubview(ipTextField)
-        self.addSubview(checkButton)
-        self.addSubview(resultLabel)
-        
-        checkButton.target = self
-        checkButton.action = #selector(checkIP)
+        containerView.addSubview(label)
+        containerView.addSubview(flagLabel)
+        containerView.addSubview(resultLabel)
+        self.addSubview(containerView)
 
         // Set up Auto Layout constraints
         NSLayoutConstraint.activate([
-            label.topAnchor.constraint(equalTo: self.topAnchor, constant: 10),
-            label.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 10),
-            label.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -10),
-            
-            ipTextField.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 10),
-            ipTextField.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 10),
-            ipTextField.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -10),
-            ipTextField.heightAnchor.constraint(equalToConstant: 24),
+            containerView.topAnchor.constraint(equalTo: self.topAnchor),
+            containerView.leadingAnchor.constraint(equalTo: self.leadingAnchor),
+            containerView.trailingAnchor.constraint(equalTo: self.trailingAnchor),
+            containerView.bottomAnchor.constraint(equalTo: self.bottomAnchor),
+            containerView.heightAnchor.constraint(equalToConstant: 20),
 
-            checkButton.topAnchor.constraint(equalTo: ipTextField.bottomAnchor, constant: 10),
-            checkButton.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 10),
-            
-            resultLabel.topAnchor.constraint(equalTo: checkButton.bottomAnchor, constant: 10),
-            resultLabel.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 10),
-            resultLabel.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -10),
-            resultLabel.bottomAnchor.constraint(equalTo: self.bottomAnchor, constant: -10)
+            label.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 5),
+            label.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
+
+            flagLabel.leadingAnchor.constraint(equalTo: label.trailingAnchor, constant: 5),
+            flagLabel.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
+
+            resultLabel.leadingAnchor.constraint(equalTo: flagLabel.trailingAnchor, constant: 2),
+            resultLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -5),
+            resultLabel.centerYAnchor.constraint(equalTo: containerView.centerYAnchor)
         ])
+
+        // Display the public IP address
+        fetchPublicIP()
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    // This method checks if the entered IP matches the local IP
-    @objc func checkIP() {
-        let localIP = getLocalIP() ?? "Unavailable"
-        let enteredIP = ipTextField.stringValue
-        
-        if enteredIP == localIP {
-            resultLabel.stringValue = "😊 IP matches!"
-        } else {
-            resultLabel.stringValue = "😞 IP does not match."
+    func fetchPublicIP() {
+        guard let url = URL(string: "https://api.ipify.org?format=json") else {
+            resultLabel.stringValue = "Error: Invalid URL"
+            return
         }
+
+        let task = URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    self?.resultLabel.stringValue = "Error: \(error.localizedDescription)"
+                    self?.flagLabel.stringValue = ""
+                    return
+                }
+
+                guard let data = data else {
+                    self?.resultLabel.stringValue = "Error: No data received"
+                    self?.flagLabel.stringValue = ""
+                    return
+                }
+
+                do {
+                    if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+                       let ip = json["ip"] as? String {
+                        self?.resultLabel.stringValue = ip
+                        self?.fetchCountryInfo(for: ip)
+                    } else {
+                        self?.resultLabel.stringValue = "Error: Unable to parse IP"
+                        self?.flagLabel.stringValue = ""
+                    }
+                } catch {
+                    self?.resultLabel.stringValue = "Error: \(error.localizedDescription)"
+                    self?.flagLabel.stringValue = ""
+                }
+            }
+        }
+
+        task.resume()
     }
 
-    // This method retrieves the local IP address of the device
-    func getLocalIP() -> String? {
-        var address: String?
-        var ifaddr: UnsafeMutablePointer<ifaddrs>?
-
-        if getifaddrs(&ifaddr) == 0 {
-            var ptr = ifaddr
-            while ptr != nil {
-                let interface = ptr!.pointee
-                let addrFamily = interface.ifa_addr.pointee.sa_family
-                if addrFamily == UInt8(AF_INET) {
-                    let name = String(cString: interface.ifa_name)
-                    if name == "en0" { // Typically the Wi-Fi adapter
-                        var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
-                        getnameinfo(interface.ifa_addr, socklen_t(interface.ifa_addr.pointee.sa_len),
-                                    &hostname, socklen_t(hostname.count),
-                                    nil, socklen_t(0), NI_NUMERICHOST)
-                        address = String(cString: hostname)
-                    }
-                }
-                ptr = interface.ifa_next
-            }
-            freeifaddrs(ifaddr)
+    func fetchCountryInfo(for ip: String) {
+        guard let url = URL(string: "https://ipapi.co/\(ip)/json/") else {
+            flagLabel.stringValue = ""
+            return
         }
 
-        return address
+        let task = URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    self?.resultLabel.stringValue = ip
+                    self?.flagLabel.stringValue = ""
+                    print("Error fetching country info: \(error.localizedDescription)")
+                    return
+                }
+
+                guard let data = data else {
+                    self?.resultLabel.stringValue = ip
+                    self?.flagLabel.stringValue = ""
+                    return
+                }
+
+                do {
+                    if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+                       let countryCode = json["country_code"] as? String {
+                        self?.resultLabel.stringValue = ip
+                        self?.flagLabel.stringValue = self?.countryFlag(from: countryCode) ?? ""
+                    } else {
+                        self?.resultLabel.stringValue = ip
+                        self?.flagLabel.stringValue = ""
+                    }
+                } catch {
+                    self?.resultLabel.stringValue = ip
+                    self?.flagLabel.stringValue = ""
+                    print("Error parsing country info: \(error.localizedDescription)")
+                }
+            }
+        }
+
+        task.resume()
+    }
+
+    func countryFlag(from countryCode: String) -> String {
+        let base : UInt32 = 127397
+        var s = ""
+        for v in countryCode.uppercased().unicodeScalars {
+            s.unicodeScalars.append(UnicodeScalar(base + v.value)!)
+        }
+        return String(s)
     }
 }
+
 
 
