@@ -31,6 +31,11 @@ class CustomView: NSView {
 
         super.init(frame: frameRect)
         
+        // Set bold font for "Public IP:" and "Home Country:" labels
+        let boldFont = NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)
+        label.font = boldFont
+        homeCountryLabel.font = boldFont
+        
         // Disable autoresizing mask translation to use Auto Layout
         containerView.translatesAutoresizingMaskIntoConstraints = false
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -73,21 +78,21 @@ class CustomView: NSView {
             containerView.trailingAnchor.constraint(equalTo: self.trailingAnchor),
             containerView.bottomAnchor.constraint(equalTo: self.bottomAnchor),
 
-            label.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 5),
+            label.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 15),  // Increased from 5 to 20
             label.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 10),
 
             flagLabel.leadingAnchor.constraint(equalTo: label.trailingAnchor, constant: 5),
             flagLabel.centerYAnchor.constraint(equalTo: label.centerYAnchor),
 
             resultLabel.leadingAnchor.constraint(equalTo: flagLabel.trailingAnchor, constant: 2),
-            resultLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -5),
+            resultLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -15),  // Changed from -5 to -20
             resultLabel.centerYAnchor.constraint(equalTo: label.centerYAnchor),
 
-            homeCountryLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 5),
+            homeCountryLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 15),  // Increased from 5 to 20
             homeCountryLabel.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 10),
 
             homeCountryResultLabel.leadingAnchor.constraint(equalTo: homeCountryLabel.trailingAnchor, constant: 5),
-            homeCountryResultLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -5),
+            homeCountryResultLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -15),  // Changed from -5 to -20
             homeCountryResultLabel.centerYAnchor.constraint(equalTo: homeCountryLabel.centerYAnchor)
         ])
 
