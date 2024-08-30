@@ -22,7 +22,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Create a custom menu item that contains the CustomView for public IP
         let customViewItem = NSMenuItem()
-        customView = CustomView(frame: NSRect(x: 0, y: 0, width: 380, height: 60)) // Increase height to 60
+        let customView = CustomView(frame: NSRect(x: 0, y: 0, width: 380, height: 60))
+        self.customView = customView  // Store the CustomView instance
         customViewItem.view = customView
         menu.addItem(customViewItem)
 
@@ -46,6 +47,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Update status item title
         updateStatusItemTitle(title: nil)
+
+        // Trigger initial IP fetch
+        customView.fetchPublicIP()
     }
 
     @objc func quitApplication() {

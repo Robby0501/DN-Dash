@@ -6,6 +6,7 @@
 //
 import Cocoa
 import Foundation
+import SystemConfiguration
 
 class CustomView: NSView {
     private let containerView: NSView
@@ -15,6 +16,9 @@ class CustomView: NSView {
     private let homeCountryLabel: NSTextField
     private let homeCountryResultLabel: NSTextField
     var currentCountry: String?
+    
+    private var networkObserver: NSObjectProtocol?
+    private var reachability: SCNetworkReachability?
 
     override init(frame frameRect: NSRect) {
         // Initialize the UI components
@@ -86,6 +90,9 @@ class CustomView: NSView {
             homeCountryResultLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -5),
             homeCountryResultLabel.centerYAnchor.constraint(equalTo: homeCountryLabel.centerYAnchor)
         ])
+
+        // Set up network change observer
+        setupNetworkObserver()
 
         // Display the public IP address and home country
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
@@ -208,6 +215,49 @@ class CustomView: NSView {
 
     func loadHomeCountry() {
         updateHomeCountry(UserDefaults.standard.string(forKey: "homeCountry") ?? "Not set")
+    }
+    
+    deinit {
+        if let observer = networkObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+        }
+        if let reachability = reachability {
+            SCNetworkReachabilityUnscheduleFromRunLoop(reachability, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
+        }
+    }
+
+    private func setupNetworkObserver() {
+        guard let reachability = SCNetworkReachabilityCreateWithName(nil, "www.apple.com") else {
+            print("Failed to create network reachability object")
+            return
+        }
+
+        self.reachability = reachability
+
+        var context = SCNetworkReachabilityContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(), retain: nil, release: nil, copyDescription: nil)
+        
+        if !SCNetworkReachabilitySetCallback(reachability, { (_, flags, info) in
+            guard let info = info else { return }
+            let customView = Unmanaged<CustomView>.fromOpaque(info).takeUnretainedValue()
+            DispatchQueue.main.async {
+                customView.networkStatusChanged()
+            }
+        }, &context) {
+            print("Failed to set network reachability callback")
+            return
+        }
+
+        if !SCNetworkReachabilityScheduleWithRunLoop(reachability, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) {
+            print("Failed to schedule network reachability")
+            return
+        }
+
+        print("Network observer set up successfully")
+    }
+
+    private func networkStatusChanged() {
+        print("Network status changed")
+        fetchPublicIP()
     }
 }
 
