@@ -15,6 +15,9 @@ class CustomView: NSView {
     private let resultLabel: NSTextField
     private let homeCountryLabel: NSTextField
     private let homeCountryResultLabel: NSTextField
+    private let speedTestLabel: NSTextField
+    private let speedTestResultLabel: NSTextField
+    private var isRunningSpeedTest = false
     var currentCountry: String?
     
     private var networkObserver: NSObjectProtocol?
@@ -24,10 +27,12 @@ class CustomView: NSView {
         // Initialize the UI components
         containerView = NSView()
         label = NSTextField(labelWithString: "Public IP:")
-        flagLabel = NSTextField(labelWithString: "")
+        flagLabel = NSTextField(labelWithString: "") 
         resultLabel = NSTextField(labelWithString: "Loading...")
         homeCountryLabel = NSTextField(labelWithString: "Home Country:")
         homeCountryResultLabel = NSTextField(labelWithString: "Not set")
+        speedTestLabel = NSTextField(labelWithString: "Speed Test:")
+        speedTestResultLabel = NSTextField(labelWithString: "Not run")
 
         super.init(frame: frameRect)
         
@@ -43,6 +48,18 @@ class CustomView: NSView {
         resultLabel.translatesAutoresizingMaskIntoConstraints = false
         homeCountryLabel.translatesAutoresizingMaskIntoConstraints = false
         homeCountryResultLabel.translatesAutoresizingMaskIntoConstraints = false
+        speedTestLabel.translatesAutoresizingMaskIntoConstraints = false
+        speedTestResultLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        // Configure speed test labels
+        speedTestLabel.isEditable = false
+        speedTestLabel.isBordered = false
+        speedTestLabel.drawsBackground = false
+        speedTestResultLabel.isEditable = false
+        speedTestResultLabel.isBordered = false
+        speedTestResultLabel.drawsBackground = false
+        speedTestResultLabel.alignment = .left
+    
 
         // Configure labels
         label.isEditable = false
@@ -70,6 +87,8 @@ class CustomView: NSView {
         containerView.addSubview(homeCountryLabel)
         containerView.addSubview(homeCountryResultLabel)
         self.addSubview(containerView)
+        containerView.addSubview(speedTestLabel)
+        containerView.addSubview(speedTestResultLabel)
 
         // Set up Auto Layout constraints
         NSLayoutConstraint.activate([
@@ -93,7 +112,13 @@ class CustomView: NSView {
 
             homeCountryResultLabel.leadingAnchor.constraint(equalTo: homeCountryLabel.trailingAnchor, constant: 5),
             homeCountryResultLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -15),  // Changed from -5 to -20
-            homeCountryResultLabel.centerYAnchor.constraint(equalTo: homeCountryLabel.centerYAnchor)
+            homeCountryResultLabel.centerYAnchor.constraint(equalTo: homeCountryLabel.centerYAnchor),
+            speedTestLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 15),
+            speedTestLabel.topAnchor.constraint(equalTo: homeCountryLabel.bottomAnchor, constant: 10),
+
+            speedTestResultLabel.leadingAnchor.constraint(equalTo: speedTestLabel.trailingAnchor, constant: 5),
+            speedTestResultLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -15),
+            speedTestResultLabel.centerYAnchor.constraint(equalTo: speedTestLabel.centerYAnchor)
         ])
 
         // Set up network change observer
@@ -180,6 +205,49 @@ class CustomView: NSView {
             }
         }
 
+        task.resume()
+    }
+
+    func runSpeedTest() {
+        guard !isRunningSpeedTest else { return }
+        isRunningSpeedTest = true
+        speedTestResultLabel.stringValue = "Running..."
+        
+        let testURL = "https://speed.cloudflare.com/__down?bytes=100000000" // 100MB file
+        let startTime = Date()
+        
+        guard let url = URL(string: testURL) else {
+            speedTestResultLabel.stringValue = "Error: Invalid URL"
+            isRunningSpeedTest = false
+            return
+        }
+        
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForResource = 60 // 60 seconds timeout
+        let session = URLSession(configuration: configuration)
+        
+        let task = session.dataTask(with: url) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                
+                let endTime = Date()
+                let elapsedTime = endTime.timeIntervalSince(startTime)
+                
+                if let error = error {
+                    self.speedTestResultLabel.stringValue = "Error: \(error.localizedDescription)"
+                } else if let data = data {
+                    let bytesReceived = Double(data.count)
+                    let megabitsReceived = (bytesReceived * 8) / 1_000_000
+                    let speedMbps = megabitsReceived / elapsedTime
+                    self.speedTestResultLabel.stringValue = String(format: "%.2f Mbps", speedMbps)
+                } else {
+                    self.speedTestResultLabel.stringValue = "Error: No data received"
+                }
+                
+                self.isRunningSpeedTest = false
+            }
+        }
+        
         task.resume()
     }
 

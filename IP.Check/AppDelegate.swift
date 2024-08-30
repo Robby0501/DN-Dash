@@ -22,17 +22,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Create a custom menu item that contains the CustomView for public IP
         let customViewItem = NSMenuItem()
-        let customView = CustomView(frame: NSRect(x: 0, y: 0, width: 380, height: 60))
-        self.customView = customView  // Store the CustomView instance
+        customView = CustomView(frame: NSRect(x: 0, y: 0, width: 380, height: 90)) // Increase height to 60
         customViewItem.view = customView
         menu.addItem(customViewItem)
+
+        // Create a custom view for the speed test button
+        let speedTestView = NSView(frame: NSRect(x: 0, y: 0, width: 380, height: 30))
+        let speedTestButton = NSButton(frame: NSRect(x: 0, y: 0, width: 380, height: 30))
+        speedTestButton.title = "Run Speed Test"
+        speedTestButton.bezelStyle = .rounded
+        speedTestButton.target = self
+        speedTestButton.action = #selector(runSpeedTest)
+        speedTestView.addSubview(speedTestButton)
+
+        // Create a custom menu item with the speed test button
+        let speedTestItem = NSMenuItem()
+        speedTestItem.view = speedTestView
+
+        // Add the custom speed test item to the menu
+        menu.addItem(speedTestItem)
 
         // Add a separator item
         menu.addItem(NSMenuItem.separator())
 
         // Add the "Set Home Country" menu item
         menu.addItem(NSMenuItem(title: "Set Home Country", action: #selector(openCountrySelector), keyEquivalent: "C"))
+        // Add the "Run Speed Test" menu item
 
+        menu.addItem(NSMenuItem(title: "Run Speed Test", action: #selector(runSpeedTest), keyEquivalent: "S"))
         // Add a separator item
         menu.addItem(NSMenuItem.separator())
 
@@ -48,13 +65,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Update status item title
         updateStatusItemTitle(title: nil)
 
-        // Trigger initial IP fetch
-        customView.fetchPublicIP()
+        // Set the rounded dock icon
+        setRoundedDockIcon()
     }
 
     @objc func quitApplication() {
         NSApplication.shared.terminate(nil)
     }
+
+   @objc func runSpeedTest() {
+    (customView as? CustomView)?.runSpeedTest()
+    // Keep the menu open
+    if let statusItem = statusItem, let button = statusItem.button {
+        statusItem.menu?.popUp(positioning: nil, at: NSPoint(x: 0, y: button.frame.height), in: button)
+    }
+}
     
     @objc func openCountrySelector() {
         let countries = [
@@ -146,6 +171,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             print("Setting title to: DN Dash")
             statusItem?.button?.title = "DN Dash"
+        }
+    }
+
+    func setRoundedDockIcon() {
+        if let appIcon = NSImage(named: "AppIcon") {
+            let size = NSSize(width: 96, height: 96)  // Reduced from 128x128 to 96x96
+            let roundedIcon = NSImage(size: size)
+            
+            roundedIcon.lockFocus()
+            let bounds = NSRect(origin: .zero, size: size)
+            NSBezierPath(roundedRect: bounds, xRadius: 15, yRadius: 15).addClip()  // Reduced corner radius
+            appIcon.draw(in: bounds, from: NSRect(origin: .zero, size: appIcon.size), operation: .copy, fraction: 1.0)
+            roundedIcon.unlockFocus()
+            
+            let iconView = NSImageView(frame: NSRect(origin: .zero, size: size))
+            iconView.image = roundedIcon
+            
+        
+            NSApp.dockTile.contentView = iconView
+            NSApp.dockTile.display()
         }
     }
 }
